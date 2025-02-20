@@ -15,35 +15,57 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
 });
 
 async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    try {
+        // Connect the client to the server	(optional starting in v4.7)
+        await client.connect();
 
-    // jobTasks.tasks
+        // jobTasks.tasks
 
-    const database = client.db('jobTasks');
-    const taskCollection = database.collection('tasks');
+        const database = client.db('jobTasks');
+        const taskCollection = database.collection('tasks');
+        const userCollection = database.collection('users');
+
+        app.get('/tasks', async (req, res) => {
+            const cursor = taskCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+        app.post('/users', async (req, res) => {
+            const { uid, email, displayName } = req.body;
+
+            if (!uid || !email) {
+                return res.status(400).json({ error: "Missing required fields" });
+            }
+
+            // Check if user already exists
+            const existingUser = await userCollection.findOne({ uid });
+
+            if (!existingUser) {
+                const newUser = { uid, email, displayName };
+                const result = await userCollection.insertOne(newUser);
+                res.status(201).json(result);
+            } else {
+                res.status(200).json({ message: "User already exists" });
+            }
+        });
 
 
-
-
-
-
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
+        // Send a ping to confirm a successful connection
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    } finally {
+        // Ensures that the client will close when you finish/error
+        // await client.close();
+    }
 }
 run().catch(console.dir);
 
