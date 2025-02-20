@@ -54,28 +54,105 @@ async function run() {
         });
 
         // Get All Tasks
-        app.get('/tasks', async (req, res) => {
+        // app.get('/tasks', async (req, res) => {
+        //     try {
+        //         const tasks = await taskCollection.find().toArray();
+        //         res.json(tasks);
+        //     } catch (error) {
+        //         res.status(500).json({ message: "Failed to fetch tasks", error });
+        //     }
+        // });
+
+        // Get All Tasks
+        app.get("/tasks", async (req, res) => {
             try {
                 const tasks = await taskCollection.find().toArray();
-                res.json(tasks);
+                res.json(tasks || []);
             } catch (error) {
-                res.status(500).json({ message: "Failed to fetch tasks", error });
+                res.status(500).json({ message: "Failed to fetch tasks", error: error.message });
+            }
+        });
+
+        // Get Single Task
+        app.get("/tasks/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({ message: "Invalid task ID" });
+                }
+                const task = await taskCollection.findOne({ _id: new ObjectId(id) });
+                if (!task) {
+                    return res.status(404).json({ message: "Task not found" });
+                }
+                res.json(task);
+            } catch (error) {
+                res.status(500).json({ message: "Failed to fetch task", error: error.message });
             }
         });
 
         // Add a New Task
-        app.post('/tasks', async (req, res) => {
+        app.post("/tasks", async (req, res) => {
             try {
-                const task = req.body;
-                task.timestamp = new Date();
-                const result = await taskCollection.insertOne(task);
-                res.json({ insertedId: result.insertedId });
+                const { title, description, category } = req.body;
+                if (!title || !category) {
+                    return res.status(400).json({ message: "Title and category are required" });
+                }
+
+                const newTask = {
+                    title,
+                    description: description || "",
+                    category,
+                    timestamp: new Date(),
+                };
+
+                const result = await taskCollection.insertOne(newTask);
+                res.json({ message: "Task added successfully", insertedId: result.insertedId });
             } catch (error) {
-                res.status(500).json({ message: "Failed to add task", error });
+                res.status(500).json({ message: "Failed to add task", error: error.message });
             }
         });
 
-        
+        // Update a Task
+        app.put("/tasks/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({ message: "Invalid task ID" });
+                }
+
+                const updateData = req.body;
+                const result = await taskCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: updateData }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ message: "Task not found" });
+                }
+                res.json({ message: "Task updated successfully" });
+            } catch (error) {
+                res.status(500).json({ message: "Failed to update task", error: error.message });
+            }
+        });
+
+        // Delete a Task
+        app.delete("/tasks/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({ message: "Invalid task ID" });
+                }
+
+                const result = await taskCollection.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).json({ message: "Task not found" });
+                }
+                res.json({ message: "Task deleted successfully" });
+            } catch (error) {
+                res.status(500).json({ message: "Failed to delete task", error: error.message });
+            }
+        });
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
