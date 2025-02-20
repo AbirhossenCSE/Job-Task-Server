@@ -33,11 +33,6 @@ async function run() {
         const taskCollection = database.collection('tasks');
         const userCollection = database.collection('users');
 
-        app.get('/tasks', async (req, res) => {
-            const cursor = taskCollection.find();
-            const result = await cursor.toArray();
-            res.send(result);
-        })
 
         app.post('/users', async (req, res) => {
             const { uid, email, displayName } = req.body;
@@ -58,6 +53,29 @@ async function run() {
             }
         });
 
+        // Get All Tasks
+        app.get('/tasks', async (req, res) => {
+            try {
+                const tasks = await taskCollection.find().toArray();
+                res.json(tasks);
+            } catch (error) {
+                res.status(500).json({ message: "Failed to fetch tasks", error });
+            }
+        });
+
+        // Add a New Task
+        app.post('/tasks', async (req, res) => {
+            try {
+                const task = req.body;
+                task.timestamp = new Date();
+                const result = await taskCollection.insertOne(task);
+                res.json({ insertedId: result.insertedId });
+            } catch (error) {
+                res.status(500).json({ message: "Failed to add task", error });
+            }
+        });
+
+        
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
@@ -76,3 +94,4 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`Task at: ${port}`)
 })
+
