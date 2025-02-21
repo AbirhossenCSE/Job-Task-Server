@@ -10,7 +10,7 @@ app.use(express.json());
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wpavw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -53,15 +53,6 @@ async function run() {
             }
         });
 
-        // Get All Tasks
-        // app.get('/tasks', async (req, res) => {
-        //     try {
-        //         const tasks = await taskCollection.find().toArray();
-        //         res.json(tasks);
-        //     } catch (error) {
-        //         res.status(500).json({ message: "Failed to fetch tasks", error });
-        //     }
-        // });
 
         // Get All Tasks
         app.get("/tasks", async (req, res) => {
@@ -116,24 +107,33 @@ async function run() {
         app.put("/tasks/:id", async (req, res) => {
             try {
                 const { id } = req.params;
+                const { title, description, category } = req.body;
+
                 if (!ObjectId.isValid(id)) {
-                    return res.status(400).json({ message: "Invalid task ID" });
+                    return res.status(400).json({ error: "Invalid task ID" });
                 }
 
-                const updateData = req.body;
-                const result = await taskCollection.updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: updateData }
+                if (!title || !description) {
+                    return res.status(400).json({ error: "Title and description are required" });
+                }
+
+                const updatedTask = await taskCollection.updateOne(
+                    { _id: new ObjectId(id) }, // Find the task by ID
+                    { $set: { title, description, category } } // Only update these fields
                 );
 
-                if (result.matchedCount === 0) {
-                    return res.status(404).json({ message: "Task not found" });
+                if (updatedTask.matchedCount === 0) {
+                    return res.status(404).json({ error: "Task not found" });
                 }
+
                 res.json({ message: "Task updated successfully" });
             } catch (error) {
-                res.status(500).json({ message: "Failed to update task", error: error.message });
+                console.error("Error updating task:", error);
+                res.status(500).json({ error: "Internal Server Error" });
             }
         });
+
+
 
         // Delete a Task
         app.delete("/tasks/:id", async (req, res) => {
@@ -148,11 +148,13 @@ async function run() {
                 if (result.deletedCount === 0) {
                     return res.status(404).json({ message: "Task not found" });
                 }
+
                 res.json({ message: "Task deleted successfully" });
             } catch (error) {
                 res.status(500).json({ message: "Failed to delete task", error: error.message });
             }
         });
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
