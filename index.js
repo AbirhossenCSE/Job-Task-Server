@@ -103,30 +103,27 @@ async function run() {
             }
         });
 
-        // Update a Task
+
         app.put("/tasks/:id", async (req, res) => {
+            const { id } = req.params;
+            const { category } = req.body;
+
+            // console.log("Received PUT request for Task ID:", id, "New Category:", category);
+
             try {
-                const { id } = req.params;
-                const { title, description, category } = req.body;
+                const existingTask = await taskCollection.findOne({ _id: new ObjectId(id) });
 
-                if (!ObjectId.isValid(id)) {
-                    return res.status(400).json({ error: "Invalid task ID" });
+                if (!existingTask) {
+                    return res.status(404).json({ error: "Task not found in database" });
                 }
 
-                if (!title || !description) {
-                    return res.status(400).json({ error: "Title and description are required" });
-                }
-
-                const updatedTask = await taskCollection.updateOne(
-                    { _id: new ObjectId(id) }, // Find the task by ID
-                    { $set: { title, description, category } } // Only update these fields
+                const result = await taskCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { category } }
                 );
 
-                if (updatedTask.matchedCount === 0) {
-                    return res.status(404).json({ error: "Task not found" });
-                }
+                res.json({ message: "Task updated successfully", result });
 
-                res.json({ message: "Task updated successfully" });
             } catch (error) {
                 console.error("Error updating task:", error);
                 res.status(500).json({ error: "Internal Server Error" });
